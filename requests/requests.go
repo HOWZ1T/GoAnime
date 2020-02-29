@@ -2,11 +2,13 @@ package requests
 
 import (
 	"bytes"
+	"log"
 	"net/http"
 )
 
 // Get makes a get request to the given url and returns the body of the request.
 func Get(url string) (string, error) {
+	log.Println("[GET] " + url)
 	resp, err := http.Get(url) // make get request
 	if err != nil {            // check for failure
 		if resp != nil {
