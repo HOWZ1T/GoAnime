@@ -6,3 +6,6 @@
 - Anime from multiple sources:
     - current sources:
         - https://www.gogoanime.video
+        
+## Basic System Design
+![Diagram 1: Basic System Design](CAnimeDownloader.png)
