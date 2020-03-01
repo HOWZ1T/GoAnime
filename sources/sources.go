@@ -19,7 +19,7 @@ type goGoAnime struct {
 }
 
 var GoGoAnime = goGoAnime{
-	base_uri:   "https://gogoanime.video",
+	base_uri:   "https://gogoanime.io",
 	search_uri: "https://ajax.apimovie.xyz/site/loadAjaxSearch?keyword=",
 }
 
@@ -28,18 +28,17 @@ func (g goGoAnime) GetSearchUri(phrase string) string {
 }
 
 func (g goGoAnime) Parse(body string, source Source) []anime.Anime {
-	log.Println(body)
-	re := regexp.MustCompile("href=.+?\" ")
+	re := regexp.MustCompile("category\\\\//?.+?\\\\")
 	links := re.FindAllString(body, -1)
 
-	// parse raw links into usable links
+	// parse raw links into usable links and then query into anime objects
 	for i, e := range links {
-		// TODO: Faster way to parse this string ?
-		links[i] = strings.ReplaceAll(e[7:], "\\/", "\\")
-		links[i] = g.base_uri + "/" + strings.ReplaceAll(links[i][:len(links[i])-3], "\\", "/")
+		links[i] = g.base_uri + "/category/" + e[10:len(e)-1]
 		log.Println(links[i])
+		anime.Anime{}.Parse(links[i])
+		// TODO request each link and parse into anime.Anime
+		break
 	}
 
-	// TODO request each link and parse into anime.Anime
 	return nil
 }

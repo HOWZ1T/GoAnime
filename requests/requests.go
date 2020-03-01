@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"net/http"
 )
@@ -35,4 +36,21 @@ func Get(url string) (string, error) {
 	}
 
 	return buf.String(), nil // return body of request
+}
+
+// Get makes a get request to the given url and returns the raw body of the request.
+func GetRaw(url string) (io.Reader, error) {
+	log.Println("[GET] " + url)
+	resp, err := http.Get(url) // make get request
+	if err != nil {            // check for failure
+		return nil, err
+	}
+	body := resp.Body
+	err = resp.Body.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil // return body of request
 }
