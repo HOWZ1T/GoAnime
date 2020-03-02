@@ -22,13 +22,13 @@ func init() {
 }
 func main() {
 	log.Info("running...")
-	animes, err := searcher.Search("Danganronpa 3: The End of Kibougamine Gakuen - Mirai-hen", sources.GoGoAnime)
+	animes, err := searcher.Search("danganronpa", sources.GoGoAnime)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(-1)
 	}
 
 	for _, e := range animes {
-		log.Info(e.Title)
+		log.Info(e)
 	}
 }

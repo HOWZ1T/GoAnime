@@ -3,8 +3,8 @@ package sources
 import (
 	"GoAnime/requests"
 	"GoAnime/types"
+	"GoAnime/utils/htm"
 	"container/list"
-	"errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/html"
 	"regexp"
@@ -39,109 +39,117 @@ func (g goGoAnime) BaseUri() string {
 func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
 	a := types.NewEmptyAnime()
 	log.Debug("engine: [goGoAnime] parsing anime from uri: " + uri)
-	contents, err := requests.Get(uri)
+	contents, err := requests.GetRaw(uri)
 	if err != nil {
 		return a, err
 	}
-	log.Debugln(contents)
 
-	// parse page into usable data
-	// TODO: bug for some reason the regex in golang doesnt capture the summary for this specific example in main!
-	// but in regex101 it does capture
-	re := regexp.MustCompile("(<h1>.+?<\\/h1>|<a.+?<\\/a>|<p.+?<\\/p>)")
-	parts := re.FindAllString(contents, -1)
-	for i, e := range parts {
-		if e[1] == 'h' {
-			if a.Title == "" {
-				a.Title = e[4 : len(e)-5]
+	dom := html.NewTokenizer(strings.NewReader(string(contents)))
+	tags := htm.GetTags(dom, []string{"h1", "a", "span"})
+	tags = g.trimUnnessescaryTags(tags)
 
-				a.Typ = strings.Split(parts[i+2], ">")[1]
-				a.Typ = a.Typ[0 : len(a.Typ)-3]
+	var prev htm.HtmlEntry
+	passGenre := false
+	genreLst := list.New()
+	episodeLst := list.New()
+	for e := tags.Front(); e != nil; e = e.Next() {
+		toke := e.Value.(htm.HtmlEntry).Toke
+		txt := e.Value.(htm.HtmlEntry).Text
 
-				log.Debug("\n\n\n")
-				for i, e := range parts {
-					log.Debug(i, ": ", e)
-				}
+		switch toke.Data {
+		case "h1":
+			a.Title = txt
 
-				log.Debug("\n\n\n")
-				for _, e := range strings.Split(contents, "\n") {
-					log.Debug(e)
-				}
-				a.PlotSummary = strings.Split(parts[i+3], "</span>")[1]
-				a.PlotSummary = a.PlotSummary[0 : len(a.PlotSummary)-4]
+		case "span":
+			if prev.Toke.Data == "span" {
+				switch {
+				case strings.Contains(prev.Text, "Type"):
+					a.Typ = txt
 
-				// genres
-				run := true
-				j := i + 4
-				genres := list.New()
-				for run == true {
-					ej := parts[j]
-					if strings.Contains(ej, "genre") == true {
-						rawGenre := strings.Split(ej, ">")[1]
-						rawGenre = strings.ReplaceAll(rawGenre[0:len(rawGenre)-3], ", ", "")
-						genres.PushBack(rawGenre)
-						j++
+				case strings.Contains(prev.Text, "Plot Summary"):
+					a.PlotSummary = html.UnescapeString(txt)
+
+				case strings.Contains(prev.Text, "Released"):
+					yr, err := strconv.Atoi(txt)
+					if err == nil {
+						a.ReleaseYear = yr
 					} else {
-						run = false
+						log.Error("couldn't pass release year: ", err)
+					}
+
+				case strings.Contains(prev.Text, "Status"):
+					a.Status = types.AsStatus(txt)
+
+				case strings.Contains(prev.Text, "Other name"):
+					a.OtherName = txt
+				}
+			}
+
+			if strings.Contains(txt, "Genre") {
+				passGenre = true
+			}
+
+			if passGenre == true && strings.Contains(txt, "Released") {
+				passGenre = false
+			}
+
+		case "a":
+			if passGenre == true {
+				genreLst.PushBack(strings.ReplaceAll(txt, ", ", ""))
+			}
+
+			if strings.Contains(txt, "-") {
+				parts := strings.Split(txt, "-")
+				start, err := strconv.Atoi(parts[0])
+				if err != nil {
+					log.Error("couldn't parse episode start: ", err)
+					start = -1
+				}
+
+				end, err := strconv.Atoi(parts[1])
+				if err != nil {
+					log.Error("couldn't parse episode end: ", err)
+					end = -1
+				}
+
+				if end != -1 && start != -1 {
+					rawNameParts := strings.Split(uri, "/")
+					rawName := rawNameParts[len(rawNameParts)-1]
+					if start == 0 {
+						start = 1
+					}
+					for i := start; i <= end; i++ {
+						eLink := g.baseUri + "/" + rawName + "-episode-" + strconv.Itoa(i)
+						episodeLst.PushBack(types.NewEpisode(i, eLink))
 					}
 				}
-
-				// convert genre list to arr
-				genreArr := make([]string, genres.Len())
-				c := 0
-				for e := genres.Front(); e != nil; e = e.Next() {
-					genreArr[c] = e.Value.(string)
-					c++
-				}
-				a.Genre = genreArr
-
-				// release year, status, other name and ep
-				year, err := strconv.Atoi(strings.Split(strings.Split(parts[j], "</span>")[1], "<")[0])
-				if err != nil {
-					return a, err
-				}
-				a.ReleaseYear = year
-				a.Status = types.AsStatus(strings.Split(strings.Split(parts[j+1], "</span>")[1], "<")[0])
-				a.OtherName = strings.Split(strings.Split(parts[j+2], "</span>")[1], "<")[0]
-
-				// episodes
-				rawEp := strings.Split(parts[j+3], ">")[1]
-				rawEp = rawEp[0 : len(rawEp)-3]
-				rawEpRange := strings.Split(rawEp, "-")
-				epStart, err := strconv.Atoi(rawEpRange[0])
-				if err != nil {
-					return a, err
-				}
-				epEnd, err := strconv.Atoi(rawEpRange[1])
-				if err != nil {
-					return a, err
-				}
-
-				episodes := list.New()
-				rawNameParts := strings.Split(uri, "/")
-				rawName := rawNameParts[len(rawNameParts)-1]
-				// gogo anime bug on website, epStart may start at 0 but it's actually one!
-				if epStart == 0 {
-					epStart = 1
-				}
-				for i := epStart; i <= epEnd; i++ {
-					eLink := g.BaseUri() + "/" + rawName + "-episode-" + strconv.Itoa(i)
-					episodes.PushBack(types.NewEpisode(i, eLink))
-				}
-
-				episodeArr := make([]types.Episode, episodes.Len())
-				c = 0
-				for e := episodes.Front(); e != nil; e = e.Next() {
-					episodeArr[c] = e.Value.(types.Episode)
-					c++
-				}
-				a.Episodes = episodeArr
-				return a, nil
 			}
 		}
+
+		prev = e.Value.(htm.HtmlEntry)
 	}
 
-	return a, errors.New("malformed parsing")
+	if genreLst.Len() > 0 {
+		genres := make([]string, genreLst.Len())
+		c := 0
+		for e := genreLst.Front(); e != nil; e = e.Next() {
+			genres[c] = e.Value.(string)
+			c++
+		}
+		a.Genre = genres
+	}
+
+	if episodeLst.Len() > 0 {
+		episodes := make([]types.Episode, episodeLst.Len())
+		c := 0
+		for e := episodeLst.Front(); e != nil; e = e.Next() {
+			episodes[c] = e.Value.(types.Episode)
+			c++
+		}
+		a.Episodes = episodes
+	}
+
+	return a, nil
 }
 
 func (g goGoAnime) Parse(body string) ([]types.Anime, error) {
@@ -170,4 +178,25 @@ func (g goGoAnime) Parse(body string) ([]types.Anime, error) {
 
 	log.Debug("parsed " + strconv.Itoa(animeLst.Len()) + " animes.")
 	return animeArr, nil
+}
+
+// returns a new list of htm.HtmlEntry with the necessary tags for parsing the anime
+func (g goGoAnime) trimUnnessescaryTags(tags *list.List) *list.List {
+	tgs := list.New()
+	// usable from h1
+	hit := false
+	for e := tags.Front(); e != nil; e = e.Next() {
+		if hit == false && e.Value.(htm.HtmlEntry).Toke.Data == "h1" {
+			hit = true
+		} else if hit == true && e.Value.(htm.HtmlEntry).Toke.Data == "span" && strings.Contains(e.Value.(htm.HtmlEntry).Text, "Show") {
+			hit = false
+			return tgs
+		}
+
+		if hit == true {
+			tgs.PushBack(e.Value.(htm.HtmlEntry))
+		}
+	}
+
+	return nil
 }
