@@ -1,11 +1,14 @@
-package anime
+package types
 
-import "strings"
+import (
+	"strings"
+)
 
 type Status int
 
 // status constants for Status
 const (
+	UNKNOWN   = -1
 	ON_GOING  = 0
 	COMPLETED = 1
 )
@@ -14,7 +17,7 @@ func (Status) Equal(a Status, b Status) bool {
 	return a == b
 }
 
-func (Status) ToString(s Status) string {
+func (s Status) ToString() string {
 	switch s {
 	case ON_GOING:
 		return "Ongoing"

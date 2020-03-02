@@ -2,22 +2,16 @@ package requests
 
 import (
 	"bytes"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 )
 
 // Get makes a get request to the given url and returns the body of the request.
 func Get(url string) (string, error) {
-	log.Println("[GET] " + url)
+	log.Debug("[GET] " + url)
 	resp, err := http.Get(url) // make get request
 	if err != nil {            // check for failure
-		if resp != nil {
-			err2 := resp.Body.Close()
-			if err2 != nil {
-				return "", err2
-			}
-		}
 		return "", err
 	}
 
@@ -40,7 +34,7 @@ func Get(url string) (string, error) {
 
 // Get makes a get request to the given url and returns the raw body of the request.
 func GetRaw(url string) (io.Reader, error) {
-	log.Println("[GET] " + url)
+	log.Debug("[GET] " + url)
 	resp, err := http.Get(url) // make get request
 	if err != nil {            // check for failure
 		return nil, err
