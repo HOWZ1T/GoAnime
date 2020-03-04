@@ -1,13 +1,13 @@
 package types
 
 type Episode struct {
-	number int
-	link   string
+	Number int    `json:"number"`
+	Link   string `json:"link"`
 }
 
 func NewEpisode(num int, link string) Episode {
 	return Episode{
-		number: num,
-		link:   link,
+		Number: num,
+		Link:   link,
 	}
 }

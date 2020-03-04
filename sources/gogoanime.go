@@ -36,18 +36,7 @@ func (g goGoAnime) BaseUri() string {
 	return g.baseUri
 }
 
-func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
-	a := types.NewEmptyAnime()
-	log.Debug("engine: [goGoAnime] parsing anime from uri: " + uri)
-	contents, err := requests.GetRaw(uri)
-	if err != nil {
-		return a, err
-	}
-
-	dom := html.NewTokenizer(strings.NewReader(string(contents)))
-	tags := htm.GetTags(dom, []string{"h1", "a", "span"})
-	tags = g.trimUnnessescaryTags(tags)
-
+func (g goGoAnime) parseTokens(tags *list.List, a *types.Anime, uri string) (*list.List, *list.List) {
 	var prev htm.HtmlEntry
 	passGenre := false
 	genreLst := list.New()
@@ -129,25 +118,48 @@ func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
 		prev = e.Value.(htm.HtmlEntry)
 	}
 
-	if genreLst.Len() > 0 {
+	return genreLst, episodeLst
+}
+
+func (goGoAnime) genreEpisodesToArr(genreLst *list.List, episodeLst *list.List) ([]string, []types.Episode) {
+	if genreLst.Len() > 0 && episodeLst.Len() > 0 {
 		genres := make([]string, genreLst.Len())
 		c := 0
 		for e := genreLst.Front(); e != nil; e = e.Next() {
 			genres[c] = e.Value.(string)
 			c++
 		}
-		a.Genre = genres
-	}
 
-	if episodeLst.Len() > 0 {
 		episodes := make([]types.Episode, episodeLst.Len())
-		c := 0
+		c = 0
 		for e := episodeLst.Front(); e != nil; e = e.Next() {
 			episodes[c] = e.Value.(types.Episode)
 			c++
 		}
-		a.Episodes = episodes
+
+		return genres, episodes
 	}
+
+	return nil, nil
+}
+
+func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
+	a := types.NewEmptyAnime()
+	log.Debug("engine: [goGoAnime] parsing anime from uri: " + uri)
+	contents, err := requests.GetRaw(uri)
+	if err != nil {
+		return a, err
+	}
+
+	dom := html.NewTokenizer(strings.NewReader(string(contents)))
+	tags := htm.GetTags(dom, []string{"h1", "a", "span"})
+	tags = g.trimUnnessescaryTags(tags)
+
+	genreLst, episodeLst := g.parseTokens(tags, &a, uri)
+	genre, episodes := g.genreEpisodesToArr(genreLst, episodeLst)
+
+	a.Genre = genre
+	a.Episodes = episodes
 
 	return a, nil
 }

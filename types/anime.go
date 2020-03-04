@@ -3,23 +3,23 @@ package types
 import "strconv"
 
 type Anime struct {
-	Title       string
-	PlotSummary string
-	OtherName   string
-	Typ         string
-	Genre       []string
+	Title       string   `json:"title"`
+	PlotSummary string   `json:"plot_summary"`
+	OtherName   string   `json:"other_name"`
+	Typ         string   `json:"type"`
+	Genre       []string `json:"genre"`
 
-	ReleaseYear int
+	ReleaseYear int `json:"release_year"`
 
-	Status   Status
-	Episodes []Episode
+	Status   Status    `json:"status"`
+	Episodes []Episode `json:"episodes"`
 }
 
 func (a Anime) StatusAsStr() string { return a.Status.ToString() }
 func (a Anime) EpisodesStr() string {
 	out := "["
 	for _, e := range a.Episodes {
-		out += "(" + strconv.Itoa(e.number) + ", " + e.link + "), "
+		out += "(" + strconv.Itoa(e.Number) + ", " + e.Link + "), "
 	}
 	out = out[0:len(out)-2] + "]"
 	return out

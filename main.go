@@ -3,6 +3,7 @@ package main
 import (
 	"GoAnime/searcher"
 	"GoAnime/sources"
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -20,6 +21,7 @@ func init() {
 	customFormatter.TimestampFormat = "2006/01/02 | 15:04:05"
 	log.SetFormatter(customFormatter)
 }
+
 func main() {
 	log.Info("running...")
 	animes, err := searcher.Search("danganronpa", sources.GoGoAnime)
@@ -29,6 +31,11 @@ func main() {
 	}
 
 	for _, e := range animes {
-		log.Info(e)
+		b, err := json.Marshal(e)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+		log.Info(string(b))
 	}
 }
