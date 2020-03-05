@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.com/HOWZ1T/GoAnime.svg?branch=master)](https://travis-ci.com/HOWZ1T/GoAnime)
 # WIP
 
 ## GOALS
