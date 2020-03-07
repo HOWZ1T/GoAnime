@@ -1,7 +1,6 @@
 package main
 
 import (
-	"GoAnime/searcher"
 	"GoAnime/sources"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
@@ -24,7 +23,7 @@ func init() {
 
 func main() {
 	log.Info("running...")
-	animes, err := searcher.Search("danganronpa", sources.GoGoAnime)
+	/*animes, err := searcher.Search("danganronpa", sources.GoGoAnime)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(-1)
@@ -37,5 +36,18 @@ func main() {
 			os.Exit(1)
 		}
 		log.Info(string(b))
+	}*/
+
+	anime, err := sources.GoGoAnime.ParseAnime("https://gogoanime.io/category/-danganronpa-the-animation")
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(-2)
 	}
+
+	b, err := json.Marshal(anime)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(2)
+	}
+	log.Info(string(b))
 }

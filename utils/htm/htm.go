@@ -27,14 +27,21 @@ func GetTags(dom *html.Tokenizer, tags []string) *list.List {
 			prevToke = toke
 
 		case html.TextToken:
-			if hasTag(prevToke, tags) == true {
-				txt := strings.TrimSpace(string(dom.Text()))
-				if len(txt) > 0 {
-					tknLst.PushBack(HtmlEntry{
-						Toke: prevToke,
-						Text: txt,
-					})
-				}
+			push := false
+			txt := strings.TrimSpace(string(dom.Text()))
+			if len(txt) <= 0 {
+				continue
+			} else if tags == nil {
+				push = true
+			} else if hasTag(prevToke, tags) == true {
+				push = true
+			}
+
+			if push == true {
+				tknLst.PushBack(HtmlEntry{
+					Toke: prevToke,
+					Text: txt,
+				})
 			}
 		}
 	}

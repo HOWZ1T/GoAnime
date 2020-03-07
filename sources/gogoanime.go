@@ -109,7 +109,7 @@ func (g goGoAnime) parseTokens(tags *list.List, a *types.Anime, uri string) (*li
 					}
 					for i := start; i <= end; i++ {
 						eLink := g.baseUri + "/" + rawName + "-episode-" + strconv.Itoa(i)
-						episodeLst.PushBack(types.NewEpisode(i, eLink))
+						episodeLst.PushBack(types.NewEpisode(i, eLink, ""))
 					}
 				}
 			}
@@ -143,6 +143,24 @@ func (goGoAnime) genreEpisodesToArr(genreLst *list.List, episodeLst *list.List) 
 	return nil, nil
 }
 
+func (g goGoAnime) parseEpisodeDownloadLinks(episodes *[]types.Episode) error {
+	for _, e := range *episodes {
+		contents, err := requests.GetRaw(e.Link)
+		if err != nil {
+			return err
+		}
+
+		dom := html.NewTokenizer(strings.NewReader(string(contents)))
+		tags := htm.GetTags(dom, nil)
+		for te := tags.Front(); te != nil; te = te.Next() {
+			he := te.Value.(htm.HtmlEntry)
+			log.Debugln("episode tokes: ", he.Text)
+		}
+		return nil
+	}
+	return nil
+}
+
 func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
 	a := types.NewEmptyAnime()
 	log.Debug("engine: [goGoAnime] parsing anime from uri: " + uri)
@@ -160,7 +178,10 @@ func (g goGoAnime) ParseAnime(uri string) (types.Anime, error) {
 
 	a.Genre = genre
 	a.Episodes = episodes
-
+	err = g.parseEpisodeDownloadLinks(&a.Episodes)
+	if err != nil {
+		return a, err
+	}
 	return a, nil
 }
 
